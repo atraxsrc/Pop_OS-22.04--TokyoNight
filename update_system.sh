@@ -10,17 +10,18 @@ set -eo pipefail
 #  red:     #f7768e   comment: #565f89
 # ─────────────────────────────────────────────
 
-# ANSI 256-color approximations of Tokyo Night Dark
-CYAN='\033[38;2;125;207;255m'    # #7dcfff  – section headers
-BLUE='\033[38;2;122;162;247m'    # #7aa2f7  – info / commands
-PURPLE='\033[38;2;187;154;247m'  # #bb9af7  – highlights
-GREEN='\033[38;2;158;206;106m'   # #9ece6a  – success
-YELLOW='\033[38;2;224;175;104m'  # #e0af68  – warnings
-ORANGE='\033[38;2;255;158;100m'  # #ff9e64  – skipped
-RED='\033[38;2;247;118;142m'     # #f7768e  – errors
-DIM='\033[38;2;86;95;137m'       # #565f89  – comments / dim text
-BOLD='\033[1m'
-RESET='\033[0m'
+# Tokyo Night Dark — using $'...' so escape bytes are stored at assignment time
+# and work correctly with both echo -e and printf "%s"
+CYAN=$'\033[38;2;125;207;255m'    # #7dcfff  – section headers
+BLUE=$'\033[38;2;122;162;247m'    # #7aa2f7  – info / commands
+PURPLE=$'\033[38;2;187;154;247m'  # #bb9af7  – highlights
+GREEN=$'\033[38;2;158;206;106m'   # #9ece6a  – success
+YELLOW=$'\033[38;2;224;175;104m'  # #e0af68  – warnings
+ORANGE=$'\033[38;2;255;158;100m'  # #ff9e64  – skipped
+RED=$'\033[38;2;247;118;142m'     # #f7768e  – errors
+DIM=$'\033[38;2;86;95;137m'       # #565f89  – comments / dim text
+BOLD=$'\033[1m'
+RESET=$'\033[0m'
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -77,7 +78,9 @@ update_flatpak() {
     local output exit_code
     output=$(flatpak update -y 2>&1) || true
     exit_code=$?
-    echo "$output" | sed "s/^/  ${DIM}/${RESET}/"
+    while IFS= read -r line; do
+        echo -e "  ${DIM}${line}${RESET}"
+    done <<< "$output"
 
     if echo "$output" | grep -q "Nothing to do"; then
         print_success "All Flatpaks are already up to date"
@@ -100,7 +103,9 @@ update_snap() {
     print_info "Running snap refresh..."
     local output
     output=$(sudo snap refresh 2>&1) || true
-    echo "$output" | sed "s/^/  ${DIM}/${RESET}/"
+    while IFS= read -r line; do
+        echo -e "  ${DIM}${line}${RESET}"
+    done <<< "$output"
 
     if echo "$output" | grep -q "All snaps up to date"; then
         print_success "All snaps are already up to date"
@@ -109,20 +114,35 @@ update_snap() {
     fi
 }
 
+# COSMIC logo accent colors — global scope so $'...' escapes work correctly
+TEAL=$'\033[38;2;78;205;196m'   # #4ecdc4  COSMIC teal
+ORG=$'\033[38;2;255;107;53m'    # #ff6b35  COSMIC orange
+
+# ── Logo ───────────────────────────────────────────────────────────────────────
+
+print_logo() {
+    local P="${CYAN}${BOLD}"
+    local R="${RESET}"
+
+    echo
+    printf "%s  ██╗      █████╗  ██████╗  ███████╗%s\n" "$P" "$R"
+    printf "%s  ██║     ██╔══██╗ ██╔══██╗ ██╔════╝%s\n" "$P" "$R"
+    printf "%s  ██║     ███████║ ██████╔╝ ███████╗%s\n"  "$P" "$R"
+    printf "%s  ██║     ██╔══██║ ██╔══██╗ ╚════██║%s\n" "$P" "$R"
+    printf "%s  ███████╗██║  ██║ ██████╔╝ ███████║%s\n"  "$P" "$R"
+    printf "%s  ╚══════╝╚═╝  ╚═╝ ╚═════╝  ╚══════╝%s\n" "$P" "$R"
+    echo
+    printf "  ${TEAL}━━━━━━━━━━━${ORG}━━━━━━━━━━━${RESET}${DIM}  Pop!_OS · COSMIC DE · System Update${RESET}\n"
+    printf "  ${DIM}  $(date '+%A %d %B %Y  %H:%M:%S')${RESET}\n"
+    echo
+}
+
 # ── Main ───────────────────────────────────────────────────────────────────────
 
 main() {
     local start_time end_time duration
 
-    echo
-    echo -e "${PURPLE}${BOLD}  ███████╗██╗   ██╗███████╗${RESET}"
-    echo -e "${PURPLE}${BOLD}  ██╔════╝╚██╗ ██╔╝██╔════╝${RESET}"
-    echo -e "${PURPLE}${BOLD}  ███████╗ ╚████╔╝ ███████╗${RESET}"
-    echo -e "${PURPLE}${BOLD}  ╚════██║  ╚██╔╝  ╚════██║${RESET}"
-    echo -e "${PURPLE}${BOLD}  ███████║   ██║   ███████║${RESET}"
-    echo -e "${PURPLE}${BOLD}  ╚══════╝   ╚═╝   ╚══════╝${RESET}"
-    echo -e "${DIM}  System Update — Pop!_OS / Cosmic${RESET}"
-    echo -e "${DIM}  $(date '+%A %d %B %Y  %H:%M:%S')${RESET}"
+    print_logo
 
     start_time=$(date +%s)
 
